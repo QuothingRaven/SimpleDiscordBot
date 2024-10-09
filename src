@@ -1,0 +1,91 @@
+import discord
+from discord.ext import commands
+import requests
+import logging
+from io import StringIO
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
+TOKEN = 'YOUR TOKEN ID'
+COMMAND_PREFIX = '!'
+
+# Set up intents
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents)
+
+@bot.event
+async def on_ready():
+    logging.info(f'{bot.user} has connected to Discord!')
+
+def create_tradingview_chart(symbol):
+    html_content = f"""
+    <html>
+      <head>
+        <title>{symbol.upper()} Price Chart</title>
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      </head>
+      <body>
+        <div id="tradingview_widget"></div>
+        <script type="text/javascript">
+          new TradingView.widget({{
+            "width": 980,
+            "height": 610,
+            "symbol": "BINANCE:{symbol.upper()}USDT",
+            "interval": "D",
+            "timezone": "Etc/UTC",
+            "theme": "light",
+            "style": "1",
+            "locale": "en",
+            "toolbar_bg": "#f1f3f6",
+            "enable_publishing": false,
+            "allow_symbol_change": true,
+            "container_id": "tradingview_widget"
+          }});
+        </script>
+      </body>
+    </html>
+    """
+    return html_content
+
+@bot.command(name='price')
+async def fetch_price(ctx, symbol: str):
+    logging.info(f'Received price command for symbol: {symbol}')
+    try:
+        # Fetch current price data from CoinGecko
+        price_url = f'https://api.coingecko.com/api/v3/simple/price?ids={symbol}&vs_currencies=usd'
+        price_response = requests.get(price_url)
+        price_response.raise_for_status()
+        price_data = price_response.json()
+
+        if symbol not in price_data:
+            await ctx.send(f'Could not find price data for {symbol}')
+            return
+
+        current_price = price_data[symbol]['usd']
+
+        # Create TradingView chart HTML
+        chart_html = create_tradingview_chart(symbol)
+        
+        # Save the HTML to a StringIO buffer
+        buf = StringIO()
+        buf.write(chart_html)
+        buf.seek(0)
+
+        # Send the message with the current price and attach the HTML file
+        await ctx.send(
+            f'The current price of {symbol} is ${current_price:.2f} USD\n'
+            f'Click the attached HTML file to view the interactive chart.',
+            file=discord.File(fp=buf, filename=f"{symbol}_chart.html")
+        )
+
+    except requests.RequestException as e:
+        logging.error(f'Error fetching data: {e}')
+        await ctx.send(f'An error occurred while fetching the data: {str(e)}')
+    except Exception as e:
+        logging.error(f'Unexpected error: {e}')
+        await ctx.send(f'An unexpected error occurred: {str(e)}')
+
+bot.run(TOKEN)
