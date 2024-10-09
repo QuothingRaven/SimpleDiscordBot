@@ -1,6 +1,6 @@
 # SimpleDiscordBot
 
-This script creates a simple Discord bot that can fetch cryptocurrency prices using the CoinGecko API. Here's a breakdown of what the code does:
+This python script creates a simple Discord bot that can fetch cryptocurrency prices using the CoinGecko API. Here's a breakdown of what the code does:
 
 It imports the necessary libraries: discord for the Discord API, commands from discord.ext for creating bot commands, and requests for making HTTP requests.
 You need to replace 'YOUR_DISCORD_BOT_TOKEN' with your actual Discord bot token.
